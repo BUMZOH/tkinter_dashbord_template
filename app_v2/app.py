@@ -24,10 +24,11 @@ root.geometry("1000x750")
 # ================================================
 nav_frame = ttk.Frame(
     root,
-    width=150,
+    width=160,
     # borderwidth=1,
     # relief="solid",
     style="Nav.TFrame",
+    padding=10,
 )
 
 nav_frame.pack(
@@ -112,6 +113,21 @@ nav_button2.pack(
 )
 
 show_page(page1)
+
+
+# ================================================
+#   Version
+# ================================================
+version_label = ttk.Label(
+    nav_frame,
+    text="Ver.20261001-1",
+    style="Version.TLabel",
+)
+
+version_label.pack(
+    side=tk.BOTTOM,
+    pady=10,
+)
 
 
 # ================================================

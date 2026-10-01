@@ -19,6 +19,13 @@ def apply_style() -> None:
         font=("Yu Gothic", 12, "bold"),
     )
 
+    style.configure(
+        "Version.TLabel",
+        background="#1f2937",
+        foreground="#d1d5db",
+        font=("Yu Gothic", 11),
+    )
+
     # Page title
     style.configure(
         "Title.TLabel",

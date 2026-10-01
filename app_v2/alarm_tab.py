@@ -46,7 +46,7 @@ TABLE_COLUMNS = {
 class AlarmTab(ttk.Frame):
 
     def __init__(self, parent):
-        super().__init__(parent)
+        super().__init__(parent, padding=10)
 
         # ================================================
         # region   Title frame
