@@ -126,6 +126,14 @@ class AlarmTab(ttk.Frame):
             "<Down>",
             lambda event: self.change_date(self.start_entry, 1)
         )
+        self.start_entry.bind(
+            "<Control-Up>",
+            lambda event: self.change_month(self.start_entry, -1),
+        )
+        self.start_entry.bind(
+            "<Control-Down>",
+            lambda event: self.change_month(self.start_entry, 1),
+        )
 
         ttk.Label(
             search_frame,
@@ -156,6 +164,14 @@ class AlarmTab(ttk.Frame):
             "<Down>",
             lambda event: self.change_date(self.end_entry, 1)
         )
+        self.end_entry.bind(
+            "<Control-Up>",
+            lambda event: self.change_month(self.end_entry, -1),
+        )
+        self.end_entry.bind(
+            "<Control-Down>",
+            lambda event: self.change_month(self.end_entry, 1),
+        )
 
         self.search_button = ttk.Button(
             search_frame,
@@ -165,6 +181,10 @@ class AlarmTab(ttk.Frame):
         self.search_button.pack(
             side=tk.LEFT,
             padx=20,
+        )
+        self.search_button.bind(
+            "<Return>",
+            self.search,
         )
         # endregion
 
@@ -483,6 +503,37 @@ class AlarmTab(ttk.Frame):
         except ValueError:
             return
 
+    def change_month(self, entry: ttk.Entry, direction: int) -> None:
+        """Change the month and set the day to 1."""
+        try:
+            current_date = datetime.strptime(
+                entry.get().strip(),
+                "%Y-%m-%d",
+            )
+
+            # Previous month
+            if direction == -1:
+                if current_date.day == 1:
+                    new_date = current_date - timedelta(days=1)
+                    new_date = new_date.replace(day=1)
+                else:
+                    new_date = current_date.replace(day=1)
+
+            # Next month
+            elif direction == 1:
+                new_date = current_date.replace(day=1)
+                new_date += timedelta(days=32)
+                new_date = new_date.replace(day=1)
+
+            else:
+                return
+
+            entry.delete(0, tk.END)
+            entry.insert(0, new_date.strftime("%Y-%m-%d"))
+
+        except ValueError:
+            return
+        
 
 if __name__ == "__main__":
     root = tk.Tk()
