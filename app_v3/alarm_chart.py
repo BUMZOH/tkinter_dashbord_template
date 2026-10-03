@@ -19,86 +19,104 @@ CHART_COLOR = "pink"
 # ================================================
 #   Create chart
 # ================================================
-def create_alarm_chart(
-        figure: Figure,
-        machine_no: int,
-        start_date: str,
-        end_date: str,
-) -> None:
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+class AlarmChart:
+    def __init__(self, figure: Figure):
+        self.figure = figure
 
-    cursor.execute(
-        """
-        SELECT 
-            alarm_comment,
-            COUNT(*) AS alarm_count
-        FROM alarm_history
-        WHERE machine_no = ?
-          AND datetime >= ?
-          AND datetime < datetime(?, '+1 day')
-        GROUP BY alarm_comment
-        ORDER BY alarm_count DESC
-        """,
-        (
-            machine_no,
-            start_date,
-            end_date,
-        ),
-    )
+    def update(
+            self,
+            machine_no: int,
+            start_date: str,
+            end_date: str,
+    ) -> None:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
 
-    rows = cursor.fetchall()
+        cursor.execute(
+            """
+            SELECT 
+                alarm_comment,
+                COUNT(*) AS alarm_count
+            FROM alarm_history
+            WHERE machine_no = ?
+            AND datetime >= ?
+            AND datetime < datetime(?, '+1 day')
+            GROUP BY alarm_comment
+            ORDER BY alarm_count DESC
+            """,
+            (
+                machine_no,
+                start_date,
+                end_date,
+            ),
+        )
 
-    conn.close()
+        rows = cursor.fetchall()
 
-    figure.clear()
+        conn.close()
 
-    # Add a single subplot (1 row, 1 column, position 1).
-    ax = figure.add_subplot(111)
+        self.figure.clear()
 
-    if not rows:
+        # Add a single subplot (1 row, 1 column, position 1).
+        ax = self.figure.add_subplot(111)
+
+        if not rows:
+            ax.set_title(CHART_TITLE)
+            return
+
+        x_values = [row[0] for row in rows]
+        y_values = [row[1] for row in rows]
+
+        # Reverse the order so that the largest value appears at the top.
+        x_values.reverse()
+        y_values.reverse()
+
+        bars = ax.barh(
+            x_values,
+            y_values,
+            color=CHART_COLOR,
+        )
+
+        ax.bar_label(
+            bars,
+            padding=3,
+        )
+
         ax.set_title(CHART_TITLE)
-        return
+        ax.set_xlabel(CHART_X_LABEL)
+        ax.set_ylabel(CHART_Y_LABEL)
 
-    x_values = [row[0] for row in rows]
-    y_values = [row[1] for row in rows]
+        # Show total count at the bottom right.
+        total_count = sum(row[1] for row in rows)
 
-    # Reverse the order so that the largest value appears at the top.
-    x_values.reverse()
-    y_values.reverse()
+        ax.text(
+            0.98,
+            0.02,
+            f"Total = {total_count}",
+            transform=ax.transAxes,
+            ha="right",
+            va="bottom",
+            fontsize=12,
+            fontweight="bold",
+        )
 
-    bars = ax.barh(
-        x_values,
-        y_values,
-        color=CHART_COLOR,
+        self.figure.tight_layout()
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    plt.rcParams["font.family"] = "Yu Gothic"
+
+    figure = plt.figure()
+
+    chart = AlarmChart(figure)
+
+    chart.update(
+        machine_no=412,
+        start_date="2026-09-01",
+        end_date="2026-09-30",
     )
 
-    ax.bar_label(
-        bars,
-        padding=3,
-    )
-
-    ax.set_title(CHART_TITLE)
-    ax.set_xlabel(CHART_X_LABEL)
-    ax.set_ylabel(CHART_Y_LABEL)
-
-    # Show total count at the bottom right.
-    total_count = sum(row[1] for row in rows)
-
-    ax.text(
-        0.98,
-        0.02,
-        f"Total = {total_count}",
-        transform=ax.transAxes,
-        ha="right",
-        va="bottom",
-        fontsize=12,
-        fontweight="bold",
-    )
-
-    figure.tight_layout()
-
-
-
+    plt.show()
 
 

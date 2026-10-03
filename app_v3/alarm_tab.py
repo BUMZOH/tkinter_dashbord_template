@@ -10,7 +10,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 plt.rcParams["font.family"] = "Yu Gothic"
 plt.rcParams["axes.unicode_minus"] = False
 
-from alarm_chart import create_alarm_chart
+from alarm_chart import AlarmChart
 from alarm_table import AlarmTable
 from style import apply_style
 
@@ -20,6 +20,15 @@ from style import apply_style
 # ================================================
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "body_inspection_machine.db"
+
+PAGE_TITLE = "■ アラーム別"
+
+# Chart class used by this tab
+CHART_CLASS = AlarmChart
+
+# Table class used by this tab
+TABLE_CLASS = AlarmTable
+
 # endregion
 
 
@@ -36,12 +45,12 @@ class AlarmTab(ttk.Frame):
 
         ttk.Label(
             title_frame,
-            text="■ アラーム別",
+            text=PAGE_TITLE,
             style="Title.TLabel",
         ).pack(anchor=tk.W)
 
         ttk.Separator(title_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(8, 0))
-        # ebdregion
+        # endregion
 
         # ================================================
         # region   Search frame
@@ -182,6 +191,8 @@ class AlarmTab(ttk.Frame):
 
         self.figure = plt.figure()
 
+        self.chart = CHART_CLASS(self.figure)
+
         self.canvas = FigureCanvasTkAgg(
             self.figure,
             master=self.chart_frame,
@@ -204,7 +215,7 @@ class AlarmTab(ttk.Frame):
             fill=tk.BOTH
         )
 
-        self.table = AlarmTable(table_frame)
+        self.table = TABLE_CLASS(table_frame)
         self.table.pack(
             fill=tk.BOTH,
             expand=True,
@@ -278,16 +289,15 @@ class AlarmTab(ttk.Frame):
             return
 
         try:
-            # Create chart
-            create_alarm_chart(
-                self.figure,
+            # Update chart
+            self.chart.update(
                 int(machine_no),
                 start_date,
                 end_date,
             )
             
             # Update table
-            self.table.search(
+            self.table.update(
                 int(machine_no),
                 start_date,
                 end_date,
@@ -378,9 +388,5 @@ if __name__ == "__main__":
     )
 
     root.mainloop()
-
-
-
-
 
 

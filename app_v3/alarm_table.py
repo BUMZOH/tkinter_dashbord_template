@@ -107,7 +107,7 @@ class AlarmTable(ttk.Frame):
 
         return rows
 
-    def search(
+    def update(
         self,
         machine_no: int,
         start_date: str,
@@ -135,3 +135,23 @@ class AlarmTable(ttk.Frame):
             )
 
 
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.title("Alarm Table Test")
+    root.geometry("1000x500")
+
+    table = AlarmTable(root)
+    table.pack(
+        fill=tk.BOTH,
+        expand=True,
+        padx=10,
+        pady=10,
+    )
+
+    table.update(
+        machine_no=412,
+        start_date="2026-09-01",
+        end_date="2026-09-30",
+    )
+
+    root.mainloop()
