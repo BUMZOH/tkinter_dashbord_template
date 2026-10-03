@@ -10,6 +10,8 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 plt.rcParams["font.family"] = "Yu Gothic"
 plt.rcParams["axes.unicode_minus"] = False
 
+from daily_chart import DailyChart
+from alarm_table import AlarmTable
 from style import apply_style
 
 
@@ -19,29 +21,16 @@ from style import apply_style
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "body_inspection_machine.db"
 
+PAGE_TITLE = "■ 日別"
 
-# Chart
-# Change the chart type in the update_chart() method.
-CHART_TITLE = "Daily Alarm Count"
-CHART_X_LABEL = "Date"
-CHART_Y_LABEL = "Count"
-CHART_COLOR = "special"
+# Chart class used by this tab
+CHART_CLASS = DailyChart
 
+# Table class used by this tab
+TABLE_CLASS = AlarmTable
 
-# Table
-TABLE_COLUMNS = {
-    "datetime": {
-        "text": "Datetime",
-        "width": 200,
-        "anchor": tk.CENTER,
-    },
-    "alarm_comment": {
-        "text": "Alarm Comment",
-        "width": 700,
-        "anchor": tk.W,
-    },
-}
 # endregion
+
 
 class DailyTab(ttk.Frame):
 
@@ -56,12 +45,12 @@ class DailyTab(ttk.Frame):
 
         ttk.Label(
             title_frame,
-            text="■ 日別",
+            text=PAGE_TITLE,
             style="Title.TLabel",
         ).pack(anchor=tk.W)
 
         ttk.Separator(title_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=(8, 0))
-        # ebdregion
+        # endregion
 
         # ================================================
         # region   Search frame
@@ -191,20 +180,22 @@ class DailyTab(ttk.Frame):
         # ================================================
         # region   Chart frame
         # ================================================
-        chart_frame = ttk.Frame(
+        self.chart_frame = ttk.Frame(
             self,
             padding=10,
         )
-        chart_frame.pack(
+        self.chart_frame.pack(
             fill=tk.BOTH,
             expand=True,
         )
 
-        self.figure, self.ax = plt.subplots()
+        self.figure = plt.figure()
+
+        self.chart = CHART_CLASS(self.figure)
 
         self.canvas = FigureCanvasTkAgg(
             self.figure,
-            master=chart_frame,
+            master=self.chart_frame,
         )
 
         self.canvas.get_tk_widget().pack(
@@ -224,44 +215,10 @@ class DailyTab(ttk.Frame):
             fill=tk.BOTH
         )
 
-        self.tree = ttk.Treeview(
-            table_frame,
-            columns=tuple(TABLE_COLUMNS.keys()),
-            show="headings",
-            height=10
-        )
-
-        # Vertical scrollbar
-        scrollbar = ttk.Scrollbar(
-            table_frame,
-            orient=tk.VERTICAL,
-            command=self.tree.yview,
-        )
-        self.tree.configure(
-            yscrollcommand=scrollbar.set,
-        )
-
-        for column_id, settings in TABLE_COLUMNS.items():
-            self.tree.heading(
-                column_id,
-                text=settings["text"],
-            )
-
-            self.tree.column(
-                column_id,
-                width=settings["width"],
-                anchor=settings["anchor"],
-            )
-
-        self.tree.pack(
-            side=tk.LEFT,
+        self.table = TABLE_CLASS(table_frame)
+        self.table.pack(
             fill=tk.BOTH,
-            expand=True
-        )
-
-        scrollbar.pack(
-            side=tk.RIGHT,
-            fill=tk.Y,
+            expand=True,
         )
         # endregion
 
@@ -332,15 +289,15 @@ class DailyTab(ttk.Frame):
             return
 
         try:
-            # Data for chart
-            chart_rows = self.get_daily_alarm_counts(
+            # Update chart
+            self.chart.update(
                 int(machine_no),
                 start_date,
                 end_date,
             )
-
-            # Data for table
-            table_rows = self.get_alarm_history(
+            
+            # Update table
+            self.table.update(
                 int(machine_no),
                 start_date,
                 end_date,
@@ -353,201 +310,7 @@ class DailyTab(ttk.Frame):
             )
             return
 
-        self.update_chart(chart_rows)
-        self.update_table(table_rows)
-
-    def get_daily_alarm_counts(
-        self,
-        machine_no: int,
-        start_date: str,
-        end_date: str,
-    ) -> list[tuple]:
-        """Get daily alarm occurrence counts."""
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT
-                date(datetime) AS alarm_date,
-                COUNT(*) AS alarm_count
-            FROM alarm_history
-            WHERE machine_no = ?
-              AND datetime >= ?
-              AND datetime < datetime(?, '+1 day')
-            GROUP BY date(datetime)
-            ORDER BY alarm_date
-            """,
-            (
-                machine_no,
-                start_date,
-                end_date,
-            ),
-        )
-
-        rows = cursor.fetchall()
-
-        conn.close()
-
-        return self.fill_missing_dates(
-            rows,
-            start_date,
-            end_date,
-        )    
-
-    def fill_missing_dates(
-        self,
-        rows: list[tuple],
-        start_date: str,
-        end_date: str,
-    ) -> list[tuple]:
-        """Fill missing dates with zero."""
-        count_by_date = dict(rows)
-        
-        result = []
-
-        current_date = datetime.strptime(
-            start_date,
-            "%Y-%m-%d",
-        )
-
-        last_date = datetime.strptime(
-            end_date,
-            "%Y-%m-%d",
-        )
-
-        while current_date <= last_date:
-            date_text = current_date.strftime("%Y-%m-%d")
-
-            result.append(
-                (
-                    date_text,
-                    count_by_date.get(date_text, 0),
-                )
-            )
-
-            current_date += timedelta(days=1)
-
-        return result
-
-    def get_bar_colors(
-        self,
-        dates: list[str],
-    ) -> str | list[str]:
-        """Get bar colors."""
-        if CHART_COLOR != "special":
-            return CHART_COLOR
-
-        colors = []
-
-        for date_text in dates:
-            date = datetime.strptime(
-                date_text,
-                "%Y-%m-%d",
-            )
-
-            if date.weekday() >= 5:
-                colors.append("gray")
-            else:
-                colors.append("pink")
-
-        return colors
-            
-    def get_alarm_history(
-        self,
-        machine_no: int,
-        start_date: str,
-        end_date: str,
-    ) -> list[tuple]:
-        """Get alarm history."""
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT
-                datetime,
-                alarm_comment
-            FROM alarm_history
-            WHERE machine_no = ?
-              AND datetime >= ?
-              AND datetime < datetime(?, '+1 day')
-            ORDER BY datetime ASC
-            """,
-            (
-                machine_no,
-                start_date,
-                end_date,
-            ),
-        )
-
-        rows = cursor.fetchall()
-
-        conn.close()
-
-        return rows
-
-    def update_chart(self, rows: list[tuple]) -> None:
-        self.ax.clear()
-
-        if not rows:
-            self.ax.set_title(CHART_TITLE)
-            self.canvas.draw()
-            return
-
-        x_values = [row[0] for row in rows]
-        y_values = [row[1] for row in rows]
-
-        bar_colors = self.get_bar_colors(x_values)
-
-        # Change as needed (e.g. bar, barh, plot, scatter).
-        bars = self.ax.bar(
-            x_values,
-            y_values,
-            color=bar_colors,
-        )
-        # Show values on the bars for bar() or barh().
-        self.ax.bar_label(
-            bars,
-            padding=3,
-        )
-
-        self.ax.set_title(CHART_TITLE)
-        self.ax.set_xlabel(CHART_X_LABEL)
-        self.ax.set_ylabel(CHART_Y_LABEL)
-
-        self.ax.tick_params(
-            axis="x",
-            labelrotation=90,
-        )
-
-        # Show total count at the bottom right.
-        total_count = sum(row[1] for row in rows)
-
-        self.ax.text(
-            0.98,
-            0.92,
-            f"Total = {total_count}",
-            transform=self.ax.transAxes,
-            ha="right",
-            va="bottom",
-            fontsize=12,
-            fontweight="bold",
-        )
-
-        self.figure.tight_layout()
         self.canvas.draw()
-
-    def update_table(self, rows: list[tuple]) -> None:
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-
-        for row in rows:
-            self.tree.insert(
-                "",
-                tk.END,
-                values=row,
-            )
 
     def change_date(self, entry: ttk.Entry, days: int) -> None:
         """Change the date by the specified number of days."""
@@ -598,7 +361,7 @@ class DailyTab(ttk.Frame):
 
         except ValueError:
             return
-
+        
 
 if __name__ == "__main__":
     root = tk.Tk()
@@ -625,9 +388,5 @@ if __name__ == "__main__":
     )
 
     root.mainloop()
-
-
-
-
 
 

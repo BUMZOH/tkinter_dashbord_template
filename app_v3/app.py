@@ -9,14 +9,29 @@ from style import apply_style
 
 
 # ================================================
+#   Settings
+# ================================================
+WINDOW_TITLE = "Alarm History Viewer"
+WINDOW_WIDTH = 1000
+WINDOW_HEIGHT = 750
+
+APP_VERSION = "Ver.20261001-1"
+
+NAV_BUTTONS = [
+    ("アラーム別", AlarmTab),
+    ("日別", DailyTab),
+]
+
+
+# ================================================
 #   Main window
 # ================================================
 root = tk.Tk()
 
 apply_style()
 
-root.title("Alarm History Viewer")
-root.geometry("1000x750")
+root.title(WINDOW_TITLE)
+root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 
 
 # ================================================
@@ -58,11 +73,17 @@ main_frame.pack(
 # ================================================
 #   Pages
 # ================================================
-page1 = AlarmTab(main_frame)
-page2 = DailyTab(main_frame)
+pages = []
 
-page1.place(x=0, y=0, relwidth=1, relheight=1)
-page2.place(x=0, y=0, relwidth=1, relheight=1)
+for _, page_class in NAV_BUTTONS:
+    page = page_class(main_frame)
+    page.place(
+        x=0,
+        y=0,
+        relwidth=1,
+        relheight=1,
+    )
+    pages.append(page)
 
 
 # ================================================
@@ -88,31 +109,20 @@ ttk.Label(
 # ================================================
 #   Navigation buttons
 # ================================================
-nav_button1 = ttk.Button(
-    nav_frame,
-    text="アラーム別",
-    command=lambda: show_page(page1),
-)
+for (button_text, _), page in zip(NAV_BUTTONS, pages):
+    button = ttk.Button(
+        nav_frame,
+        text=button_text,
+        command=lambda p=page: show_page(p),
+    )
 
-nav_button1.pack(
-    fill=tk.X,
-    padx=10,
-    pady=(10, 5),
-)
+    button.pack(
+        fill=tk.X,
+        padx=10,
+        pady=5,
+    )
 
-nav_button2 = ttk.Button(
-    nav_frame,
-    text="日別",
-    command=lambda: show_page(page2),
-)
-
-nav_button2.pack(
-    fill=tk.X,
-    padx=10,
-    pady=5,
-)
-
-show_page(page1)
+show_page(pages[0])
 
 
 # ================================================
@@ -120,7 +130,7 @@ show_page(page1)
 # ================================================
 version_label = ttk.Label(
     nav_frame,
-    text="Ver.20261001-1",
+    text=APP_VERSION,
     style="Version.TLabel",
 )
 
@@ -134,9 +144,10 @@ version_label.pack(
 #   Close
 # ================================================
 def on_close() -> None:
-    """Close matplotlib and destroy the Tkinter window."""  
-    plt.close(page1.figure)
-    plt.close(page2.figure)
+    """Close matplotlib and destroy the Tkinter window."""
+    for page in pages:
+        plt.close(page.figure)
+
     root.destroy()
 
 root.protocol("WM_DELETE_WINDOW", on_close)
